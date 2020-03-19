@@ -4,3 +4,5 @@
 
 /.vs/TimeTable/v16/Server/sqlite3
 /TimeTable/obj
+/TimeTable/bin/Debug/netcoreapp3.1
+/.vs/TimeTable

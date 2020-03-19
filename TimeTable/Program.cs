@@ -4,9 +4,80 @@ using System.Linq;
 
 namespace TimeTable
 {
+    public static class Mutations
+    {
+        #region Private
+        private static void Swap<T>(ref T a, ref T b) where T : IComparable
+        {
+            var tmp = a;
+            a = b;
+            b = tmp;
+        }
+        private static int RightSearchNonSorted<T>(T[] source) where T : IComparable
+        {
+            for (int i = source.Length - 2; i >= 0; i--)
+                if (source[i + 1].CompareTo(source[i]) > 0)
+                    return i;
+            return 0;
+        }
+        private static int FindRightBiggerThanValue<T>(T[] source, T value) where T : IComparable
+        {
+            for (int i = source.Length - 1; i >= 0; i--)
+                if (source[i].CompareTo(value) > 0)
+                    return i;
+            return 0;
+        }
+        private static T[] SortRigthPart<T>(T[] source, int startPosition) where T : IComparable
+        {
+            return source.Take(startPosition).Concat(source.Skip(startPosition).OrderBy(x => x)).ToArray();
+        }
+        #endregion Private
+        public static IEnumerable<T[]> GetPermutations<T>(T[] source) where T : IComparable
+        {
+            source = source.OrderBy(x => x).ToArray();
+            yield return source;
+            int i = RightSearchNonSorted(source);
+            while (i >= 0)
+            {
+                var j = FindRightBiggerThanValue(source, source[i]);
+                if (j == 0) yield break;
+                Swap(ref source[i], ref source[j]);
+                source = SortRigthPart(source, i + 1);
+                yield return source;
+                i = RightSearchNonSorted(source);
+            }
+        }
+        public static IEnumerable<IEnumerable<int>> GetCombinations(int[] source, int mustContain, int maxSum)
+        {
+            Stack<int> intStack = new Stack<int>();
+
+            intStack.Push(60 * 24 + 1);//maxmin*maxhour+1 // endworktime - beginworktime
+            int numbers = intStack.Count();
+            while (numbers > 0)
+            {
+                int curr = intStack.Pop();
+                numbers--;
+                var lower = source.Where(x => x < curr).OrderByDescending(x => x);
+                if (lower.Count() > 0)
+                {
+                    foreach (int insNumber in lower)
+                        while (intStack.Sum() + insNumber <= maxSum)
+                        {
+                            intStack.Push(insNumber);
+                            numbers++;
+                        }
+                    if (maxSum - intStack.Sum() <= 0 && intStack.Contains(mustContain))
+                    {
+                        yield return intStack;
+                    }
+                }
+            }
+        }
+    }
+
     class Program
     {
-        static readonly int maxTime = 240;
+        static readonly int maxTime = 180;
         static readonly int selected = 60;
         static void Show(IEnumerable<int> items)
         {
@@ -14,81 +85,25 @@ namespace TimeTable
                 Console.Write(item.ToString() + " ");
             Console.WriteLine();
         }
-        static void Calc(IEnumerable<int> items, int mustContain)
+        static void ShowTab(IEnumerable<int> items)
         {
-            if (maxTime - items.Sum() <= 0 && items.Contains(mustContain))
-            {
-
-                List<int> itemsForPermutation = GenerateItemsForPermutations(items, mustContain);
-
-                Show(items);
-                Show(itemsForPermutation);
-
-                Console.WriteLine();
-                Console.WriteLine(items.Sum());
-
-                
-            }
-        }
-        public static List<int> GenerateItemsForPermutations(IEnumerable<int> items, int mustContain)
-        {
-            var containsCount = items.Where(x => x == mustContain).Count();
-            List<int> itemsForPermutation = items.Where(x => x != mustContain).ToList();
-            for (int i = containsCount - 1; i > 0; i--)
-            {
-                itemsForPermutation.Add(mustContain);
-            }
-            return itemsForPermutation;
-        }
-        public static IEnumerable<T[]> GenerateAllPermutations<T>(T[] source, int count)
-        {
-            if (source.Length < 0 || source.Length < count) throw new ArgumentOutOfRangeException();
-            if (count <= 0) yield break;
-            T[] result = new T[count];
-            Stack<int> stackInd = new Stack<int>();
-            stackInd.Push(0);
-            while (stackInd.Count > 0)
-            {
-                int position = stackInd.Count - 1;
-                int indexValue = stackInd.Pop();
-                while (indexValue < source.Length)
-                {
-                    result[position++] = source[indexValue++];
-                    stackInd.Push(indexValue);
-                    if (position == count)
-                    {
-                        yield return result;
-                        break;
-                    }
-                }
-            }
+            foreach (var item in items)
+                Console.Write("    "+item.ToString() + " ");
+            Console.WriteLine();
         }
 
         static void Main()
         {
-            int[] times = { 120, 90, 60, 45, 30 };
-            Stack<int> intStack = new Stack<int>();
-
-            intStack.Push(60*24+1);//maxmin*maxhour+1 // endworktime - beginworktime
-            int numbers = intStack.Count();
-            while (numbers>0)
+            int[] times = { 120, 90, 60, 45 };
+            foreach (var item in Mutations.GetCombinations(times, selected, maxTime))
             {
-                int curr = intStack.Pop();
-                numbers--;
-                var lower = times.Where(x => x < curr).OrderByDescending(x=>x);
-                if (lower.Count()>0)
+                Show(item);
+                foreach (var subitem in Mutations.GetPermutations(item.ToArray()))
                 {
-                    foreach (int insNumber in lower)
-                        while (intStack.Sum() + insNumber <= maxTime)
-                        {
-                            intStack.Push(insNumber);
-                            numbers++;
-                        }
-                    Show(intStack, selected);
+                    ShowTab(subitem);
                 }
+                Console.WriteLine(item.Sum());
             }
-
-
         }
     }
 }
